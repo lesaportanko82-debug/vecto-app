@@ -1,5 +1,5 @@
-// Stride Service Worker
-const CACHE_NAME = 'stride-v2';
+// Vecto Service Worker
+const CACHE_NAME = 'vecto-v3';
 
 // Assets to cache on install (shell)
 const PRECACHE = [
@@ -32,32 +32,17 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin) return;
 
-  // Network-first for API/supabase, cache-first for assets
-  const isAsset = url.pathname.match(/\.(js|css|woff2?|png|svg|ico)$/);
-
-  if (isAsset) {
-    event.respondWith(
-      caches.match(event.request).then(cached => {
-        if (cached) return cached;
-        return fetch(event.request).then(response => {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
-          return response;
-        });
+  // Network-first для всего: всегда берём свежую версию, кэш — только запасной вариант офлайн.
+  // (раньше ассеты были cache-first и застревали старой сборкой)
+  event.respondWith(
+    fetch(event.request)
+      .then(response => {
+        const clone = response.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+        return response;
       })
-    );
-  } else {
-    // Network-first with cache fallback
-    event.respondWith(
-      fetch(event.request)
-        .then(response => {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
-          return response;
-        })
-        .catch(() => caches.match(event.request))
-    );
-  }
+      .catch(() => caches.match(event.request))
+  );
 });
 
 self.addEventListener('notificationclick', (event) => {
